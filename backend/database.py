@@ -4,13 +4,21 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, F
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-_db_url = URL.create(
-    "mysql+pymysql",
-    username=os.getenv("DB_USER", "root"),
-    password=os.getenv("DB_PASSWORD", "password"),
-    host=os.getenv("DB_HOST", "localhost"),
-    database=os.getenv("DB_NAME", "course_compass"),
-)
+# Render (and most cloud platforms) provide a single DATABASE_URL.
+# For local dev we use individual DB_* vars via URL.create() to safely handle
+# special characters (like @) in passwords without manual URL-encoding.
+_raw_url = os.getenv("DATABASE_URL")
+if _raw_url:
+    # Render provides postgres:// or mysql:// style URLs — normalise driver
+    _db_url = _raw_url.replace("mysql://", "mysql+pymysql://", 1)
+else:
+    _db_url = URL.create(
+        "mysql+pymysql",
+        username=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "password"),
+        host=os.getenv("DB_HOST", "localhost"),
+        database=os.getenv("DB_NAME", "course_compass"),
+    )
 
 engine = create_engine(_db_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
