@@ -44,46 +44,63 @@
     <!-- ── Spacer ──────────────────────────────────────────────── -->
     <div class="flex-1" />
 
-    <!-- ── Streak Map ─────────────────────────────────────────── -->
-    <div class="flex items-center gap-3">
-      <!-- Label + current streak count -->
-      <div class="text-right hidden sm:block">
-        <p class="text-[9px] font-semibold uppercase tracking-widest text-gray-600">Practice Streak</p>
-        <p class="text-[11px] font-bold text-brand-400">
-          {{ currentStreak }} <span class="text-gray-600 font-normal">day{{ currentStreak !== 1 ? 's' : '' }}</span>
+    <!-- ── Streak Badge ──────────────────────────────────────────── -->
+    <div
+      ref="streakRef"
+      class="flex items-center gap-2 cursor-default px-3 py-1.5 rounded-xl transition-all duration-200"
+      style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);"
+      @mouseenter="onStreakEnter"
+      @mouseleave="onStreakLeave"
+    >
+      <span class="text-xl leading-none select-none">🔥</span>
+      <div class="leading-none">
+        <p class="text-[9px] font-semibold uppercase tracking-widest text-gray-600 mb-0.5">Streak</p>
+        <p class="text-[13px] font-bold text-brand-400">
+          {{ currentStreak }}<span class="text-gray-600 font-normal text-[10px] ml-1">day{{ currentStreak !== 1 ? 's' : '' }}</span>
         </p>
-      </div>
-
-      <!-- Grid: 5 weeks × 7 days -->
-      <div class="flex gap-[3px] items-start">
-        <!-- Day-of-week labels -->
-        <div class="flex flex-col gap-[3px] mr-0.5">
-          <span v-for="d in DAY_LABELS" :key="d"
-            class="text-[8px] text-gray-700 leading-none flex items-center"
-            style="height: 10px;"
-          >{{ d }}</span>
-        </div>
-
-        <!-- Week columns -->
-        <div v-for="(week, wi) in streakGrid" :key="wi" class="flex flex-col gap-[3px]">
-          <div
-            v-for="(cell, di) in week" :key="di"
-            class="rounded-[2px] cursor-default transition-all duration-150"
-            style="width: 10px; height: 10px;"
-            :style="`background: ${cellColor(cell)}`"
-            @mouseenter="e => showTooltip(e, cell)"
-            @mouseleave="tooltip = null"
-          />
-        </div>
       </div>
     </div>
 
-    <!-- ── Tooltip (teleported to body) ───────────────────────── -->
+    <!-- ── Streak Map Popup ────────────────────────────────────── -->
+    <Teleport to="body">
+      <Transition name="map-pop">
+        <div
+          v-if="showMap"
+          class="fixed z-[9999] p-3 rounded-xl text-xs"
+          style="background: rgba(10,10,20,0.97); border: 1px solid rgba(99,102,241,0.25); box-shadow: 0 8px 32px rgba(0,0,0,0.6);"
+          :style="{ top: mapPos.top + 'px', left: mapPos.left + 'px', transform: 'translateX(-50%)' }"
+          @mouseenter="onPopupEnter"
+          @mouseleave="onPopupLeave"
+        >
+          <p class="text-[9px] font-semibold uppercase tracking-widest text-gray-500 mb-2">Practice Streak</p>
+          <div class="flex gap-[3px] items-start">
+            <div class="flex flex-col gap-[3px] mr-0.5">
+              <span v-for="d in DAY_LABELS" :key="d"
+                class="text-[8px] text-gray-700 leading-none flex items-center"
+                style="height: 10px;"
+              >{{ d }}</span>
+            </div>
+            <div v-for="(week, wi) in streakGrid" :key="wi" class="flex flex-col gap-[3px]">
+              <div
+                v-for="(cell, di) in week" :key="di"
+                class="rounded-[2px] cursor-default transition-all duration-150"
+                style="width: 10px; height: 10px;"
+                :style="`background: ${cellColor(cell)}`"
+                @mouseenter="e => showTooltip(e, cell)"
+                @mouseleave="tooltip = null"
+              />
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ── Cell Tooltip ───────────────────────────────────────── -->
     <Teleport to="body">
       <Transition name="tip">
         <div
           v-if="tooltip"
-          class="fixed z-[9999] px-3 py-2 rounded-xl pointer-events-none text-xs"
+          class="fixed z-[10000] px-3 py-2 rounded-xl pointer-events-none text-xs"
           style="background: rgba(10,10,20,0.97); border: 1px solid rgba(99,102,241,0.25); box-shadow: 0 8px 32px rgba(0,0,0,0.6);"
           :style="{ top: tooltip.y + 'px', left: tooltip.x + 'px', transform: 'translateX(-50%) translateY(-115%)' }"
         >
@@ -138,14 +155,12 @@ const levelMeta = computed(() => {
 
 // ── Streak grid ────────────────────────────────────────────────────────────
 
-// Returns 5 columns (weeks) × 7 rows (Mon→Sun)
 const streakGrid = computed(() => {
   const today  = new Date()
-  // Find last Monday
-  const dow    = today.getDay()          // 0=Sun … 6=Sat
-  const toMon  = dow === 0 ? 6 : dow - 1 // days since last Monday
+  const dow    = today.getDay()
+  const toMon  = dow === 0 ? 6 : dow - 1
   const monday = new Date(today)
-  monday.setDate(today.getDate() - toMon - 28)  // start 4 weeks before last Monday
+  monday.setDate(today.getDate() - toMon - 28)
   monday.setHours(0, 0, 0, 0)
 
   const weeks = []
@@ -154,9 +169,9 @@ const streakGrid = computed(() => {
     for (let d = 0; d < 7; d++) {
       const date = new Date(monday)
       date.setDate(monday.getDate() + w * 7 + d)
-      const dateStr   = date.toISOString().split('T')[0]
-      const activity  = auth.activityMap[dateStr]
-      const isFuture  = date > today
+      const dateStr  = date.toISOString().split('T')[0]
+      const activity = auth.activityMap[dateStr]
+      const isFuture = date > today
       week.push({
         date,
         dateStr,
@@ -188,18 +203,46 @@ const currentStreak = computed(() => {
     d.setDate(today.getDate() - i)
     const key = d.toISOString().split('T')[0]
     if (auth.activityMap[key]) streak++
-    else if (i > 0) break  // allow today to be empty (day not over yet)
+    else if (i > 0) break
   }
   return streak
 })
 
-// ── Tooltip ────────────────────────────────────────────────────────────────
+// ── Streak map popup ───────────────────────────────────────────────────────
+
+const streakRef = ref(null)
+const showMap   = ref(false)
+const mapPos    = ref({ top: 0, left: 0 })
+let hideTimer   = null
+
+function onStreakEnter() {
+  clearTimeout(hideTimer)
+  if (streakRef.value) {
+    const rect = streakRef.value.getBoundingClientRect()
+    mapPos.value = { top: rect.bottom + 8, left: rect.left + rect.width / 2 }
+  }
+  showMap.value = true
+}
+
+function onStreakLeave() {
+  hideTimer = setTimeout(() => { showMap.value = false }, 120)
+}
+
+function onPopupEnter() {
+  clearTimeout(hideTimer)
+}
+
+function onPopupLeave() {
+  tooltip.value = null
+  showMap.value = false
+}
+
+// ── Cell tooltip ───────────────────────────────────────────────────────────
 
 const tooltip = ref(null)
 
 function showTooltip(e, cell) {
-  const date = cell.date
-  const label = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  const label = cell.date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
   tooltip.value = {
     x:      e.clientX,
     y:      e.clientY,
@@ -214,4 +257,7 @@ function showTooltip(e, cell) {
 <style scoped>
 .tip-enter-active, .tip-leave-active { transition: opacity 0.12s, transform 0.12s; }
 .tip-enter-from, .tip-leave-to { opacity: 0; transform: translateX(-50%) translateY(-105%); }
+
+.map-pop-enter-active, .map-pop-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.map-pop-enter-from, .map-pop-leave-to { opacity: 0; transform: translateX(-50%) translateY(-6px); }
 </style>

@@ -27,6 +27,7 @@ from auth import (
 )
 
 OLLAMA_MODEL = "coursecompass"
+OLLAMA_BASE_OPTIONS = {"num_gpu": 0}  # force CPU — avoids CUDA memory errors on low-VRAM GPUs
 
 app = FastAPI(title="Course Compass API", version="2.0.0")
 app.add_middleware(
@@ -117,7 +118,7 @@ def stream_ollama_sse(messages_list: list, system_prompt: str, num_predict: int 
             model=OLLAMA_MODEL,
             messages=formatted,
             stream=True,
-            options={"num_predict": num_predict, "temperature": temperature, "num_ctx": 4096},
+            options={**OLLAMA_BASE_OPTIONS, "num_predict": num_predict, "temperature": temperature, "num_ctx": 4096},
         )
         in_think = False
         for chunk in stream:
@@ -419,7 +420,7 @@ async def extract_memory(
         resp = client.chat(
             model=OLLAMA_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            options={"num_predict": 256, "temperature": 0.1},
+            options={**OLLAMA_BASE_OPTIONS, "num_predict": 256, "temperature": 0.1},
         )
         raw = strip_think_section(resp.get("message", {}).get("content", "")).strip()
 
@@ -572,7 +573,7 @@ async def quiz_generate(
                 {"role": "system", "content": quiz_system},
                 {"role": "user", "content": user_msg},
             ],
-            options={"num_predict": num_predict, "temperature": 0.25, "num_ctx": 4096},
+            options={**OLLAMA_BASE_OPTIONS, "num_predict": num_predict, "temperature": 0.25, "num_ctx": 4096},
         )
         raw = response.get("message", {}).get("content", "")
         raw = strip_think_section(raw)
@@ -645,7 +646,7 @@ async def quiz_feedback(req: QuizFeedbackRequest):
                 {"role": "system", "content": "You are a helpful tutor. Give brief, clear explanations."},
                 {"role": "user", "content": user_msg},
             ],
-            options={"num_predict": 256, "temperature": 0.2},
+            options={**OLLAMA_BASE_OPTIONS, "num_predict": 256, "temperature": 0.2},
         )
         feedback = strip_think_section(resp.get("message", {}).get("content", ""))
         return {"feedback": feedback.strip()}

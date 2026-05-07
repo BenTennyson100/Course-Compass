@@ -1,11 +1,18 @@
 import os
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, Float, UniqueConstraint
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:password@localhost/course_compass")
+_db_url = URL.create(
+    "mysql+pymysql",
+    username=os.getenv("DB_USER", "root"),
+    password=os.getenv("DB_PASSWORD", "password"),
+    host=os.getenv("DB_HOST", "localhost"),
+    database=os.getenv("DB_NAME", "course_compass"),
+)
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(_db_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
