@@ -48,7 +48,8 @@ def startup():
 
 
 def get_client() -> Client:
-    return Client()
+    host = os.getenv("OLLAMA_HOST")  # e.g. https://xxxx.ngrok-free.app
+    return Client(host=host) if host else Client()
 
 
 # ─── Pydantic Models ──────────────────────────────────────────────────────────

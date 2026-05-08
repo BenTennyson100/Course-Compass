@@ -1,16 +1,23 @@
 import os
 from datetime import datetime
+from urllib.parse import urlparse
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, Float, UniqueConstraint
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Render (and most cloud platforms) provide a single DATABASE_URL.
-# For local dev we use individual DB_* vars via URL.create() to safely handle
-# special characters (like @) in passwords without manual URL-encoding.
+# Always build the engine URL via URL.create() so special characters in
+# passwords are handled safely and the driver is always mysql+pymysql.
 _raw_url = os.getenv("DATABASE_URL")
 if _raw_url:
-    # Render provides postgres:// or mysql:// style URLs — normalise driver
-    _db_url = _raw_url.replace("mysql://", "mysql+pymysql://", 1)
+    _p = urlparse(_raw_url)
+    _db_url = URL.create(
+        "mysql+pymysql",
+        username=_p.username,
+        password=_p.password,
+        host=_p.hostname,
+        port=_p.port,
+        database=_p.path.lstrip("/"),
+    )
 else:
     _db_url = URL.create(
         "mysql+pymysql",
