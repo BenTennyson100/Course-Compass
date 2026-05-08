@@ -58,7 +58,8 @@ export const useAuthStore = defineStore('auth', () => {
   function refreshMemoryMap()   { _loadMemoryMap() }
 
   function login() {
-    window.location.href = '/api/auth/google'
+    const base = import.meta.env.VITE_API_BASE || ''
+    window.location.href = `${base}/api/auth/google`
   }
 
   function logout() {
